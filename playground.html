@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dither Avatar Playground</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e5e5e5; min-height: 100vh; }
+  .app { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
+  .subtitle { color: #888; font-size: 0.875rem; margin-bottom: 2rem; }
+  .layout { display: grid; grid-template-columns: 320px 1fr; gap: 2rem; }
+  @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } }
+  .panel { background: #141414; border: 1px solid #262626; border-radius: 12px; padding: 1.25rem; }
+  .panel h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 1rem; }
+  .control { margin-bottom: 1rem; }
+  .control label { display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; color: #aaa; margin-bottom: 0.35rem; }
+  .control label span.val { color: #e5e5e5; font-family: 'SF Mono', Monaco, monospace; font-size: 0.75rem; }
+  input[type="range"] { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 3px; background: #262626; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #fff; cursor: pointer; }
+  input[type="text"] { width: 100%; padding: 0.5rem 0.75rem; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #e5e5e5; font-size: 0.8125rem; font-family: 'SF Mono', Monaco, monospace; }
+  input[type="text"]:focus { outline: none; border-color: #555; }
+  input[type="color"] { -webkit-appearance: none; border: 1px solid #333; border-radius: 6px; width: 36px; height: 28px; cursor: pointer; background: transparent; padding: 2px; }
+  input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+  .color-row { display: flex; align-items: center; gap: 0.5rem; }
+  .color-row input[type="text"] { flex: 1; }
+  .preview-grid { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-start; }
+  .preview-main { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+  .preview-label { font-size: 0.7rem; color: #666; }
+  .preview-sizes { display: flex; gap: 1rem; align-items: end; }
+  .preview-sizes .size-item { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 0.75rem; margin-top: 1.5rem; width: 100%; }
+  .gallery-item { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+  .gallery-item img { border-radius: 8px; image-rendering: pixelated; }
+  .gallery-item span { font-size: 0.6rem; color: #555; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn-row { display: flex; gap: 0.5rem; margin-top: 1.25rem; }
+  button { padding: 0.5rem 1rem; border: 1px solid #333; border-radius: 8px; background: #1a1a1a; color: #e5e5e5; font-size: 0.8125rem; cursor: pointer; transition: background 0.15s; }
+  button:hover { background: #262626; }
+  button.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  button.primary:hover { background: #1d4ed8; }
+  .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: #22c55e; color: #fff; padding: 0.6rem 1.25rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 500; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+  .section-divider { border: none; border-top: 1px solid #222; margin: 1rem 0; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+  .toggle-row span { font-size: 0.8125rem; color: #aaa; }
+  .toggle { position: relative; width: 36px; height: 20px; cursor: pointer; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle .slider { position: absolute; inset: 0; background: #333; border-radius: 10px; transition: background 0.2s; }
+  .toggle .slider::before { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: transform 0.2s; }
+  .toggle input:checked + .slider { background: #2563eb; }
+  .toggle input:checked + .slider::before { transform: translateX(16px); }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Dither Avatar Playground</h1>
+  <p class="subtitle">Tweak parameters, preview at multiple sizes, copy config for AI customization</p>
+
+  <div class="layout">
+    <div class="panel" id="controls">
+      <h2>Seed</h2>
+      <div class="control">
+        <input type="text" id="seed" value="alice" placeholder="Enter a seed string..."/>
+      </div>
+
+      <hr class="section-divider"/>
+      <h2>Grid</h2>
+      <div class="control">
+        <label>Grid Size <span class="val" id="gridSizeVal">34</span></label>
+        <input type="range" id="gridSize" min="8" max="64" value="34" step="1"/>
+      </div>
+
+      <hr class="section-divider"/>
+      <h2>Output</h2>
+      <div class="control">
+        <label>SVG Size (px) <span class="val" id="svgSizeVal">200</span></label>
+        <input type="range" id="svgSize" min="40" max="512" value="200" step="8"/>
+      </div>
+      <div class="control">
+        <label>Scale <span class="val" id="scaleVal">6</span></label>
+        <input type="range" id="scale" min="1" max="20" value="6" step="0.5"/>
+      </div>
+
+
+      <hr class="section-divider"/>
+      <h2>Colors</h2>
+      <div class="toggle-row">
+        <span>Auto from seed</span>
+        <label class="toggle">
+          <input type="checkbox" id="autoColor" checked/>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div id="manualColors" style="display:none">
+        <div class="control">
+          <label>Fill (background)</label>
+          <div class="color-row">
+            <input type="color" id="fillColor" value="#4d1f1f"/>
+            <input type="text" id="fillHex" value="#4d1f1f"/>
+          </div>
+        </div>
+        <div class="control">
+          <label>Stroke (pattern)</label>
+          <div class="color-row">
+            <input type="color" id="strokeColor" value="#d46666"/>
+            <input type="text" id="strokeHex" value="#d46666"/>
+          </div>
+        </div>
+      </div>
+      <div id="autoColorParams">
+        <div class="control">
+          <label>Hue Saturation <span class="val" id="hueSatVal">85</span></label>
+          <input type="range" id="hueSat" min="0" max="100" value="85" step="1"/>
+        </div>
+        <div class="control">
+          <label>Fill Lightness <span class="val" id="fillLightVal">30</span></label>
+          <input type="range" id="fillLight" min="5" max="60" value="30" step="1"/>
+        </div>
+        <div class="control">
+          <label>Stroke Saturation <span class="val" id="strokeSatVal">90</span></label>
+          <input type="range" id="strokeSat" min="0" max="100" value="90" step="1"/>
+        </div>
+        <div class="control">
+          <label>Stroke Lightness <span class="val" id="strokeLightVal">65</span></label>
+          <input type="range" id="strokeLight" min="30" max="90" value="65" step="1"/>
+        </div>
+      </div>
+
+      <hr class="section-divider"/>
+      <h2>Density</h2>
+      <div class="control">
+        <label>Angle Offset <span class="val" id="angleOffsetVal">0</span></label>
+        <input type="range" id="angleOffset" min="-180" max="180" value="0" step="1"/>
+      </div>
+      <div class="control">
+        <label>Density Bias <span class="val" id="densityBiasVal">0</span></label>
+        <input type="range" id="densityBias" min="-0.5" max="0.5" value="0" step="0.01"/>
+      </div>
+
+      <hr class="section-divider"/>
+      <h2>Render</h2>
+      <div class="toggle-row">
+        <span>Invert pattern</span>
+        <label class="toggle">
+          <input type="checkbox" id="invertPattern"/>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <span>Circle clip</span>
+        <label class="toggle">
+          <input type="checkbox" id="circleClip" checked/>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="btn-row">
+        <button class="primary" onclick="copyConfig()">Copy Config</button>
+        <button onclick="copySVG()">Copy SVG</button>
+        <button onclick="randomize()">Randomize</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="preview-grid">
+        <div class="preview-main">
+          <div id="mainPreview"></div>
+          <div class="preview-sizes" id="sizePreviews"></div>
+        </div>
+      </div>
+      <div class="gallery" id="gallery"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast">Copied!</div>
+
+<script>
+var $ = function(id) { return document.getElementById(id); };
+
+function hashString(str) {
+  var h = 0;
+  for (var i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+function hashMultiple(str, count) {
+  var r = [];
+  for (var i = 0; i < count; i++) r.push(hashString(str + ':' + i));
+  return r;
+}
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  var k = function(n) { return (n + h / 30) % 12; };
+  var a = s * Math.min(l, 1 - l);
+  var f = function(n) { return l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); };
+  var toHex = function(v) { return Math.round(v * 255).toString(16).padStart(2, '0'); };
+  return '#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
+}
+
+var BAYER_4X4 = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+var uidCounter = 0;
+
+function getConfig() {
+  return {
+    seed: $('seed').value || 'default',
+    gridSize: +$('gridSize').value,
+    svgSize: +$('svgSize').value,
+    scale: +$('scale').value,
+
+    autoColor: $('autoColor').checked,
+    fillColor: $('fillColor').value,
+    strokeColor: $('strokeColor').value,
+    hueSat: +$('hueSat').value,
+    fillLight: +$('fillLight').value,
+    strokeSat: +$('strokeSat').value,
+    strokeLight: +$('strokeLight').value,
+    angleOffset: +$('angleOffset').value,
+    densityBias: +$('densityBias').value,
+    invertPattern: $('invertPattern').checked,
+    circleClip: $('circleClip').checked,
+  };
+}
+
+function generateAvatar(seed, cfg) {
+  var grid = cfg.gridSize;
+  var size = cfg.svgSize;
+  var sc = cfg.scale;
+
+  var hashes = hashMultiple(seed, 2);
+  var baseAngle = (hashes[0] % 360);
+  var angle = (baseAngle + cfg.angleOffset) * (Math.PI / 180);
+  var baseOffset = ((hashes[1] % 100) / 100) * 0.4 - 0.2;
+  var offset = baseOffset + cfg.densityBias;
+  var cosA = Math.cos(angle), sinA = Math.sin(angle);
+
+  var density = [];
+  for (var y = 0; y < grid; y++) {
+    var row = [];
+    for (var x = 0; x < grid; x++) {
+      var nx = (x / Math.max(grid - 1, 1)) * 2 - 1;
+      var ny = (y / Math.max(grid - 1, 1)) * 2 - 1;
+      var projected = nx * cosA + ny * sinA;
+      row.push(Math.max(0, Math.min(1, (projected + 1 + offset) / 2)));
+    }
+    density.push(row);
+  }
+
+  var pixels = [];
+  for (var y = 0; y < grid; y++) {
+    var row = [];
+    for (var x = 0; x < grid; x++) {
+      var bayer = BAYER_4X4[y % 4][x % 4] / 16;
+      var on = density[y][x] >= bayer ? 1 : 0;
+      if (cfg.invertPattern) on = 1 - on;
+      row.push(on);
+    }
+    pixels.push(row);
+  }
+
+  var fill, stroke;
+  if (cfg.autoColor) {
+    var hueHash = hashMultiple(seed, 1);
+    var hue = hueHash[0] % 360;
+    fill = hslToHex(hue, cfg.hueSat, cfg.fillLight);
+    stroke = hslToHex(hue, cfg.strokeSat, cfg.strokeLight);
+  } else {
+    fill = cfg.fillColor;
+    stroke = cfg.strokeColor;
+  }
+
+  // Build path in grid coordinates (0..grid-1)
+  var parts = [];
+  for (var y = 0; y < grid; y++) {
+    var row = pixels[y];
+    var segs = [];
+    var x = 0;
+    while (x < grid) {
+      if (row[x] === 1) { var s = x; while (x < grid && row[x] === 1) x++; segs.push({s: s, l: x - s}); }
+      else x++;
+    }
+    if (!segs.length) continue;
+    var p = 'M' + segs[0].s + ' ' + y + 'h' + segs[0].l;
+    var cx = segs[0].s + segs[0].l;
+    for (var i = 1; i < segs.length; i++) {
+      p += 'm' + (segs[i].s - cx) + ' 0h' + segs[i].l;
+      cx = segs[i].s + segs[i].l;
+    }
+    parts.push(p);
+  }
+  var pathD = parts.join('');
+
+  // Auto-adjust scale so pattern always fills the SVG regardless of grid size.
+  // User's scale slider (default 6) acts as a zoom multiplier centered on auto-fit.
+  // At scale=6 (default), effectiveScale = size/grid (exact fit).
+  // At scale=12, pattern is 2x zoomed in; at scale=3, pattern is 2x zoomed out.
+  uidCounter++;
+  var uid = 'c' + uidCounter;
+  var autoScale = size / grid;
+  var effectiveScale = autoScale * (sc / 6);
+  var halfGrid = grid / 2;
+  var txStr = 'translate(' + (size/2) + ',' + (size/2) + ')scale(' + effectiveScale + ')translate(-' + halfGrid + ',-' + halfGrid + ')';
+  var svg;
+
+  if (cfg.circleClip) {
+    svg = '<svg width="' + size + '" height="' + size + '" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">'
+      + '<defs><clipPath id="' + uid + '"><circle cx="' + (size/2) + '" cy="' + (size/2) + '" r="' + (size/2) + '"/></clipPath></defs>'
+      + '<g clip-path="url(#' + uid + ')">'
+      + '<rect width="' + size + '" height="' + size + '" fill="' + fill + '"/>'
+      + '<path fill="none" stroke="' + stroke + '" transform="' + txStr + '" d="' + pathD + '"/>'
+      + '</g></svg>';
+  } else {
+    svg = '<svg width="' + size + '" height="' + size + '" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">'
+      + '<rect width="' + size + '" height="' + size + '" fill="' + fill + '"/>'
+      + '<path fill="none" stroke="' + stroke + '" transform="' + txStr + '" d="' + pathD + '"/>'
+      + '</svg>';
+  }
+
+  return svg;
+}
+
+function dataUri(svg) {
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+
+function render() {
+  var cfg = getConfig();
+  var svg = generateAvatar(cfg.seed, cfg);
+
+  $('mainPreview').innerHTML = svg;
+  var mainSvg = $('mainPreview').querySelector('svg');
+  mainSvg.style.maxWidth = '100%';
+  mainSvg.style.borderRadius = cfg.circleClip ? '12px' : '4px';
+
+  var sizes = [16, 24, 32, 40, 48, 64, 80];
+  var sizeHtml = '';
+  for (var i = 0; i < sizes.length; i++) {
+    var s = sizes[i];
+    var uri = dataUri(generateAvatar(cfg.seed, cfg));
+    var br = cfg.circleClip ? '50%' : '2px';
+    sizeHtml += '<div class="size-item"><img src="' + uri + '" width="' + s + '" height="' + s + '" style="border-radius:' + br + ';image-rendering:pixelated"/><span class="preview-label">' + s + 'px</span></div>';
+  }
+  $('sizePreviews').innerHTML = sizeHtml;
+
+  var seeds = ['alice','bob','charlie','diana','eve','frank','grace','heidi','ivan','judy','karl','luna','mallory','niki','oscar','peggy'];
+  var galHtml = '';
+  for (var i = 0; i < seeds.length; i++) {
+    var uri = dataUri(generateAvatar(seeds[i], cfg));
+    var br = cfg.circleClip ? '50%' : '4px';
+    galHtml += '<div class="gallery-item"><img src="' + uri + '" width="64" height="64" style="border-radius:' + br + ';image-rendering:pixelated"/><span>' + seeds[i] + '</span></div>';
+  }
+  $('gallery').innerHTML = galHtml;
+}
+
+function showToast(msg) {
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 1800);
+}
+
+function copyConfig() {
+  var cfg = getConfig();
+  var lines = [
+    '# Dither Avatar Configuration',
+    '## Current Parameters',
+    '',
+    '| Parameter | Value |',
+    '|-----------|-------|',
+    '| gridSize | ' + cfg.gridSize + ' |',
+    '| svgSize | ' + cfg.svgSize + ' |',
+    '| scale | ' + cfg.scale + ' |',
+    '| autoColor | ' + cfg.autoColor + ' |',
+    '| fillColor | ' + cfg.fillColor + ' |',
+    '| strokeColor | ' + cfg.strokeColor + ' |',
+    '| hueSaturation | ' + cfg.hueSat + ' |',
+    '| fillLightness | ' + cfg.fillLight + ' |',
+    '| strokeSaturation | ' + cfg.strokeSat + ' |',
+    '| strokeLightness | ' + cfg.strokeLight + ' |',
+    '| angleOffset | ' + cfg.angleOffset + ' |',
+    '| densityBias | ' + cfg.densityBias + ' |',
+    '| invertPattern | ' + cfg.invertPattern + ' |',
+    '| circleClip | ' + cfg.circleClip + ' |',
+    '',
+    '## Algorithm',
+    '- Bayer 4x4 ordered dithering',
+    '- Density gradient: linear at angle from seed hash + angleOffset',
+    '- Colors: HSL-based, hue from seed hash, saturation/lightness from params',
+    '- Path: run-length encoded horizontal segments',
+    '',
+    '## File to modify',
+    '`apps/web/lib/domain/auth/dither-avatar-core.ts`',
+    '',
+    '```typescript',
+    '// Current constants (change these):',
+    'const GRID = ' + cfg.gridSize + ';',
+    'const SIZE = ' + cfg.svgSize + ';',
+    'const SCALE = ' + cfg.scale + ';',
+    '',
+    '// Color generation (generateColors):',
+    'fill: hslToHex(hue, ' + cfg.hueSat + ', ' + cfg.fillLight + '),',
+    'stroke: hslToHex(hue, ' + cfg.strokeSat + ', ' + cfg.strokeLight + '),',
+    '```',
+  ].join('\n');
+  navigator.clipboard.writeText(lines).then(function() { showToast('Config copied to clipboard!'); });
+}
+
+function copySVG() {
+  var cfg = getConfig();
+  var svg = generateAvatar(cfg.seed, cfg);
+  navigator.clipboard.writeText(svg).then(function() { showToast('SVG copied!'); });
+}
+
+function randomize() {
+  var names = ['alpha','bravo','charlie','delta','echo','foxtrot','golf','hotel','india','juliet','kilo','lima','mike','november','oscar','papa','quebec','romeo','sierra','tango'];
+  $('seed').value = names[Math.floor(Math.random()*names.length)] + Math.floor(Math.random()*1000);
+  render();
+}
+
+function syncColorInputs(colorId, hexId) {
+  $(colorId).addEventListener('input', function() { $(hexId).value = $(colorId).value; render(); });
+  $(hexId).addEventListener('input', function() { try { $(colorId).value = $(hexId).value; } catch(e){} render(); });
+}
+
+function setup() {
+  var ranges = ['gridSize','svgSize','scale','hueSat','fillLight','strokeSat','strokeLight','angleOffset','densityBias'];
+  for (var i = 0; i < ranges.length; i++) {
+    (function(id) {
+      $(id).addEventListener('input', function() { $(id+'Val').textContent = $(id).value; render(); });
+    })(ranges[i]);
+  }
+
+  $('seed').addEventListener('input', render);
+
+  $('autoColor').addEventListener('change', function() {
+    $('manualColors').style.display = $('autoColor').checked ? 'none' : 'block';
+    $('autoColorParams').style.display = $('autoColor').checked ? 'block' : 'none';
+    render();
+  });
+
+  syncColorInputs('fillColor','fillHex');
+  syncColorInputs('strokeColor','strokeHex');
+
+  $('invertPattern').addEventListener('change', render);
+  $('circleClip').addEventListener('change', render);
+
+  render();
+}
+
+setup();
+</script>
+</body>
+</html>
