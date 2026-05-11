@@ -1,0 +1,6 @@
+{
+  "framework": null,
+  "buildCommand": "echo 'Static site - no build needed'",
+  "outputDirectory": ".",
+  "cleanUrls": true
+}

@@ -1,3 +1,6 @@
 node_modules/
 dist/
 *.tgz
+.vercel
+.DS_Store
+package/

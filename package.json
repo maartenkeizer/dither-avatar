@@ -1,5 +1,5 @@
 {
-  "name": "@maartenkeizer/dither-avatar",
+  "name": "dither-avatar",
   "version": "1.0.0",
   "description": "Deterministic dithered SVG avatars from a seed string. Zero dependencies.",
   "main": "dist/index.js",
@@ -7,14 +7,14 @@
   "module": "dist/index.mjs",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./react": {
+      "types": "./dist/react.d.ts",
       "import": "./dist/react.mjs",
-      "require": "./dist/react.js",
-      "types": "./dist/react.d.ts"
+      "require": "./dist/react.js"
     }
   },
   "files": [
