@@ -41,7 +41,7 @@
   "bugs": {
     "url": "https://github.com/maartenkeizer/dither-avatar/issues"
   },
-  "homepage": "https://maartenkeizer.github.io/dither-avatar",
+  "homepage": "https://dither-avatar.pages.dev",
   "peerDependencies": {
     "react": ">=18"
   },

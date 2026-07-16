@@ -4,7 +4,7 @@ Deterministic dithered SVG avatars from any seed string. Zero dependencies.
 
 ![preview](preview.png)
 
-**[Live playground &rarr;](https://dither-avatar.vercel.app)**
+**[Live playground &rarr;](https://dither-avatar.pages.dev)**
 
 ## Install
 
