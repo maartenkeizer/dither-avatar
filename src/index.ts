@@ -106,7 +106,10 @@ function bitmapToPath(pixels: number[][]): string {
 
     if (segments.length === 0) continue;
 
-    let pathStr = `M${segments[0].start} ${y}`;
+    // Stroke each dither row through the center of its cell. The grid transform
+    // is centered on the cell bounds (0..GRID), so using integer y coordinates
+    // shifts the rendered rows upward by half a cell.
+    let pathStr = `M${segments[0].start} ${y + 0.5}`;
     let cursorX = segments[0].start;
     pathStr += `h${segments[0].len}`;
     cursorX += segments[0].len;
