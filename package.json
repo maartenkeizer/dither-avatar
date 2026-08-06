@@ -1,6 +1,6 @@
 {
   "name": "dither-avatar",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Deterministic dithered SVG avatars from a seed string. Zero dependencies.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
